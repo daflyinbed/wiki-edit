@@ -2,50 +2,8 @@ use clap::{App, Arg, SubCommand};
 use reqwest::blocking::Client;
 
 use std::{env, fs::File, io::Read};
-mod types;
-use types::*;
-
-fn get_login_token(url: &str, client: &Client) -> String {
-    let resp = client.post(url).form(&TokenReq::login()).send().unwrap();
-    resp.json::<QueryLoginTokenResp>()
-        .unwrap()
-        .query
-        .tokens
-        .logintoken
-}
-fn get_csrf_token(url: &str, client: &Client) -> String {
-    let resp = client.post(url).form(&TokenReq::csrf()).send().unwrap();
-    resp.json::<QueryCsrfTokenResp>()
-        .unwrap()
-        .query
-        .tokens
-        .csrftoken
-}
-fn login(url: &str, token: &str, client: &Client) {
-    let name = env::var("NAME").unwrap();
-    let password = env::var("PASSWORD").unwrap();
-    let resp = client
-        .post(url)
-        .form(&LoginReq::new(&name, &password, token))
-        .send()
-        .unwrap();
-    let login = resp.json::<LoginResp>().unwrap().login;
-    if login.result != "Success" {
-        panic!("login failed");
-    }
-    println!("hello {}", login.lgusername);
-}
-fn edit(url: &str, client: &Client, title: &str, text: &str) {
-    let csrf_token = get_csrf_token(url, client);
-    let resp = client
-        .post(url)
-        .form(&EditReq::new(title, text, &csrf_token))
-        .send()
-        .unwrap();
-    if resp.json::<EditResp>().unwrap().edit.result != "Success" {
-        panic!("edit failed")
-    }
-}
+mod api;
+use api::{edit::edit, login::login, query::meta::*};
 
 fn main() {
     dotenv::dotenv().ok().unwrap();
@@ -81,6 +39,8 @@ fn main() {
         )
         .get_matches();
     let api = env::var("API_URL").unwrap();
+    let name = env::var("NAME").unwrap();
+    let password = env::var("PASSWORD").unwrap();
     if let Some(matches) = matches.subcommand_matches("edit") {
         let title = matches.value_of("title").unwrap();
         let buf = if let Some(path) = matches.value_of("file") {
@@ -99,8 +59,13 @@ fn main() {
             .cookie_store(true)
             .build()
             .unwrap();
-        let login_token = get_login_token(&api, &client);
-        login(&api, &login_token, &client);
-        edit(&api, &client, title, text);
+        login(
+            &api,
+            &get_login_token(&api, &client),
+            &name,
+            &password,
+            &client,
+        );
+        edit(&api, &client, &get_csrf_token(&api, &client), title, text);
     }
 }
