@@ -1,4 +1,4 @@
-use reqwest::blocking::Client;
+use crate::Config;
 use serde::{Deserialize, Serialize};
 #[derive(Serialize)]
 struct LoginReq<'a> {
@@ -30,9 +30,11 @@ struct LoginResp {
     login: InnerLoginResp,
 }
 
-pub(crate) fn login(url: &str, token: &str, name: &str, password: &str, client: &Client) {
-    let resp = client
-        .post(url)
+pub(crate) fn login(token: &str, name: &str, password: &str) {
+    let config = Config::get();
+    let resp = config
+        .client
+        .post(&config.end_point)
         .form(&LoginReq::new(&name, &password, token))
         .send()
         .unwrap();

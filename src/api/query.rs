@@ -1,11 +1,10 @@
 pub(crate) mod meta {
-    use reqwest::blocking::Client;
 
-    pub fn get_csrf_token(url: &str, client: &Client) -> String {
-        tokens::csrf::get(url, client)
+    pub fn get_csrf_token() -> String {
+        tokens::csrf::get()
     }
-    pub fn get_login_token(url: &str, client: &Client) -> String {
-        tokens::login::get(url, client)
+    pub fn get_login_token() -> String {
+        tokens::login::get()
     }
     mod tokens {
         use serde::{Deserialize, Serialize};
@@ -22,7 +21,7 @@ pub(crate) mod meta {
             tokens: T,
         }
         pub(super) mod login {
-            use reqwest::blocking::Client;
+            use crate::Config;
             use serde::Deserialize;
 
             use super::{TokenReq, TokenResp};
@@ -45,8 +44,14 @@ pub(crate) mod meta {
             struct QueryLoginTokenResp {
                 query: TokenResp<LoginTokenResp>,
             }
-            pub(in crate::api::query::meta) fn get(url: &str, client: &Client) -> String {
-                let resp = client.post(url).form(&TokenReq::login()).send().unwrap();
+            pub(in crate::api::query::meta) fn get() -> String {
+                let config = Config::get();
+                let resp = config
+                    .client
+                    .post(&config.end_point)
+                    .form(&TokenReq::login())
+                    .send()
+                    .unwrap();
                 resp.json::<QueryLoginTokenResp>()
                     .unwrap()
                     .query
@@ -56,7 +61,7 @@ pub(crate) mod meta {
         }
         pub(super) mod csrf {
             use super::{TokenReq, TokenResp};
-            use reqwest::blocking::Client;
+            use crate::Config;
             use serde::Deserialize;
             #[derive(Deserialize)]
             struct CsrfTokenResp {
@@ -76,8 +81,14 @@ pub(crate) mod meta {
             struct QueryCsrfTokenResp {
                 query: TokenResp<CsrfTokenResp>,
             }
-            pub(in crate::api::query::meta) fn get(url: &str, client: &Client) -> String {
-                let resp = client.post(url).form(&TokenReq::csrf()).send().unwrap();
+            pub(in crate::api::query::meta) fn get() -> String {
+                let config = Config::get();
+                let resp = config
+                    .client
+                    .post(&config.end_point)
+                    .form(&TokenReq::csrf())
+                    .send()
+                    .unwrap();
                 resp.json::<QueryCsrfTokenResp>()
                     .unwrap()
                     .query

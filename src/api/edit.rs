@@ -1,4 +1,3 @@
-use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 #[derive(Serialize)]
 struct EditReq<'a> {
@@ -30,9 +29,12 @@ struct InnerEditResp {
 struct EditResp {
     edit: InnerEditResp,
 }
-pub(crate) fn edit(url: &str, client: &Client, csrf_token: &str, title: &str, text: &str) {
-    let resp = client
-        .post(url)
+use crate::Config;
+pub(crate) fn edit(csrf_token: &str, title: &str, text: &str) {
+    let config = Config::get();
+    let resp = config
+        .client
+        .post(&config.end_point)
         .form(&EditReq::new(title, text, &csrf_token))
         .send()
         .unwrap();

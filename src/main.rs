@@ -4,6 +4,27 @@ use reqwest::blocking::Client;
 use std::{env, fs::File, io::Read};
 mod api;
 use api::{edit::edit, login::login, query::meta::*};
+use once_cell::sync::OnceCell;
+struct Config {
+    end_point: String,
+    client: Client,
+}
+static CONFIG: OnceCell<Config> = OnceCell::new();
+impl Config {
+    pub fn get() -> &'static Config {
+        CONFIG.get().unwrap()
+    }
+    fn init(end_point: String) {
+        CONFIG.set(Config {
+            client: Client::builder()
+                .user_agent("rust_wiki_edit")
+                .cookie_store(true)
+                .build()
+                .unwrap(),
+            end_point,
+        });
+    }
+}
 
 fn main() {
     dotenv::dotenv().ok().unwrap();
@@ -38,7 +59,7 @@ fn main() {
                 ),
         )
         .get_matches();
-    let api = env::var("API_URL").unwrap();
+    Config::init(env::var("API_URL").unwrap());
     let name = env::var("NAME").unwrap();
     let password = env::var("PASSWORD").unwrap();
     if let Some(matches) = matches.subcommand_matches("edit") {
@@ -54,18 +75,8 @@ fn main() {
         let text = buf
             .as_deref()
             .unwrap_or_else(|| matches.value_of("text").unwrap());
-        let client = Client::builder()
-            .user_agent("rust_wiki_edit")
-            .cookie_store(true)
-            .build()
-            .unwrap();
-        login(
-            &api,
-            &get_login_token(&api, &client),
-            &name,
-            &password,
-            &client,
-        );
-        edit(&api, &client, &get_csrf_token(&api, &client), title, text);
+
+        login(&get_login_token(), &name, &password);
+        edit(&get_csrf_token(), title, text);
     }
 }
